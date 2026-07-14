@@ -702,7 +702,7 @@
         function initFromState(data) {
           gridSize.value = data.size;
           grid.value = data.grid;
-          turn.value = data.turn + 1;
+          turn.value = data.turn % 2 + 1;
           lastMove.value = data.last_move ? data.last_move : null;
           blackCount.value = data.black_count;
           whiteCount.value = data.white_count;
@@ -754,7 +754,7 @@
         function updateFromState(data) {
           grid.value = data.grid;
           lastMove.value = data.last_move ? data.last_move : null;
-          turn.value = data.turn + 1;
+          turn.value = data.turn % 2 + 1;
           blackCount.value = data.black_count;
           whiteCount.value = data.white_count;
           emptyCount.value = data.empty_count;
@@ -762,14 +762,15 @@
           message.value = data.message || '';
           messageType.value = data.game_over ? 'success' : '';
 
-          // 记录棋谱
+          // 记录棋谱 - 当前turn是下一方的，所以刚走的棋是另一方
           if (lastMove.value) {
             const [r, c] = lastMove.value;
-            const color = turn.value === 2 ? '黑' : '白';
+            const movedColor = turn.value % 2 === 1 ? '白' : '黑'; // 与当前方相反
+            const moveNum = turn.value % 2 === 1 ? Math.ceil(turn.value / 2) : Math.ceil((turn.value - 1) / 2);
             moveHistory.value.push({
-              num: Math.ceil(turn.value / 2),
-              color: turn.value === 2 ? 'black' : 'white',
-              text: `${color}${formatMove(r, c)}`,
+              num: moveNum,
+              color: movedColor === '黑' ? 'black' : 'white',
+              text: `${movedColor}${formatMove(r, c)}`,
             });
           }
         }
