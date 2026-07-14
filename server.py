@@ -187,4 +187,4 @@ async def get_legal_moves():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8765)
+    uvicorn.run(app, host="127.0.0.1", port=8765)
