@@ -4,9 +4,10 @@
 提供 REST API 供 Vue 前端调用
 """
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from typing import Optional
 import sys
@@ -18,9 +19,6 @@ from ai import GoAI
 
 app = FastAPI(title="Go Game API", version="1.0.0")
 
-# 挂载静态文件（index.html）
-app.mount("/", StaticFiles(directory=".", html=True), name="static")
-
 # CORS - 允许前端跨域访问
 app.add_middleware(
     CORSMiddleware,
@@ -29,6 +27,13 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# 挂载静态文件（index.html）到 /static 前缀，根路径用路由处理
+STATIC_DIR = os.path.dirname(os.path.abspath(__file__))
+
+@app.get("/")
+async def serve_index():
+    return FileResponse(os.path.join(STATIC_DIR, "index.html"))
 
 
 # ---------- Pydantic models ----------
