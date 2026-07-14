@@ -1,0 +1,796 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>围棋人机对战</title>
+  <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      padding: 20px;
+      color: #e0e0e0;
+    }
+
+    #app {
+      width: 100%;
+      max-width: 900px;
+    }
+
+    /* 开始界面 */
+    .start-screen {
+      text-align: center;
+      padding: 60px 20px;
+    }
+
+    .start-screen h1 {
+      font-size: 3em;
+      margin-bottom: 10px;
+      background: linear-gradient(135deg, #f5af19, #f12711);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .start-screen .subtitle {
+      font-size: 1.1em;
+      color: #8892b0;
+      margin-bottom: 40px;
+    }
+
+    .settings-panel {
+      background: rgba(255,255,255,0.05);
+      border-radius: 16px;
+      padding: 30px 40px;
+      display: inline-block;
+      text-align: left;
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255,255,255,0.08);
+    }
+
+    .setting-row {
+      display: flex;
+      align-items: center;
+      margin-bottom: 16px;
+      gap: 16px;
+    }
+
+    .setting-row:last-child { margin-bottom: 0; }
+
+    .setting-row label {
+      font-size: 1em;
+      color: #ccd6f6;
+      min-width: 80px;
+    }
+
+    .setting-row select, .setting-row button {
+      padding: 10px 20px;
+      border-radius: 8px;
+      border: 1px solid rgba(255,255,255,0.15);
+      background: rgba(255,255,255,0.08);
+      color: #e0e0e0;
+      font-size: 1em;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .setting-row select:hover, .setting-row select:focus {
+      border-color: #f5af19;
+      outline: none;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #f5af19, #f12711) !important;
+      border: none !important;
+      color: #fff !important;
+      font-weight: 600;
+      padding: 12px 40px !important;
+      font-size: 1.1em !important;
+      border-radius: 10px !important;
+      cursor: pointer;
+      transition: transform 0.15s, box-shadow 0.15s;
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(245, 175, 25, 0.3);
+    }
+
+    .btn-primary:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+
+    /* 游戏界面 */
+    .game-screen {
+      display: flex;
+      gap: 24px;
+      align-items: flex-start;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    .board-container {
+      flex-shrink: 0;
+    }
+
+    .board-wrapper {
+      background: linear-gradient(145deg, #dcb35c, #c49a3c);
+      border-radius: 12px;
+      padding: 16px;
+      box-shadow: 0 12px 40px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.2);
+      position: relative;
+    }
+
+    .board {
+      display: grid;
+      gap: 0;
+      position: relative;
+    }
+
+    .cell {
+      width: 100%;
+      aspect-ratio: 1;
+      position: relative;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .cell::before, .cell::after {
+      content: '';
+      position: absolute;
+      background: #8b6914;
+    }
+
+    .cell::before {
+      width: 100%;
+      height: 1px;
+      top: 50%;
+      left: 0;
+    }
+
+    .cell::after {
+      width: 1px;
+      height: 100%;
+      left: 50%;
+      top: 0;
+    }
+
+    .cell:hover .hover-indicator {
+      opacity: 0.4;
+    }
+
+    .hover-indicator {
+      width: 70%;
+      height: 70%;
+      border-radius: 50%;
+      background: rgba(0,0,0,0.15);
+      position: absolute;
+      opacity: 0;
+      transition: opacity 0.15s;
+      pointer-events: none;
+    }
+
+    .stone {
+      width: 85%;
+      height: 85%;
+      border-radius: 50%;
+      position: absolute;
+      z-index: 2;
+      pointer-events: none;
+      animation: stoneDrop 0.15s ease-out;
+    }
+
+    @keyframes stoneDrop {
+      from { transform: scale(0.3); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
+    }
+
+    .stone-black {
+      background: radial-gradient(circle at 35% 35%, #555, #111 60%, #000);
+      box-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+    }
+
+    .stone-white {
+      background: radial-gradient(circle at 35% 35%, #fff, #ddd 60%, #bbb);
+      box-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+    }
+
+    .last-move-marker {
+      width: 30%;
+      height: 30%;
+      border-radius: 50%;
+      position: absolute;
+      z-index: 3;
+      pointer-events: none;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+    }
+
+    .last-move-marker.black {
+      background: rgba(255,255,255,0.6);
+    }
+
+    .last-move-marker.white {
+      background: rgba(0,0,0,0.5);
+    }
+
+    .star-point {
+      width: 12%;
+      height: 12%;
+      border-radius: 50%;
+      background: #8b6914;
+      position: absolute;
+      z-index: 1;
+      pointer-events: none;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+    }
+
+    /* 侧边栏 */
+    .sidebar {
+      flex: 1;
+      min-width: 220px;
+      max-width: 300px;
+    }
+
+    .panel {
+      background: rgba(255,255,255,0.05);
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 16px;
+      border: 1px solid rgba(255,255,255,0.08);
+      backdrop-filter: blur(10px);
+    }
+
+    .panel h3 {
+      font-size: 0.85em;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: #8892b0;
+      margin-bottom: 12px;
+    }
+
+    .score-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+
+    .score-dot {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .score-dot.black {
+      background: radial-gradient(circle at 35% 35%, #555, #111);
+    }
+
+    .score-dot.white {
+      background: radial-gradient(circle at 35% 35%, #fff, #bbb);
+    }
+
+    .score-value {
+      font-size: 1.5em;
+      font-weight: 700;
+      color: #ccd6f6;
+    }
+
+    .score-label {
+      font-size: 0.85em;
+      color: #8892b0;
+    }
+
+    .turn-indicator {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 14px;
+      border-radius: 8px;
+      background: rgba(255,255,255,0.05);
+      margin-bottom: 10px;
+    }
+
+    .turn-dot {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .turn-dot.black { background: #111; border: 1px solid #555; }
+    .turn-dot.white { background: #ddd; border: 1px solid #999; }
+
+    .turn-text {
+      font-size: 0.95em;
+      color: #ccd6f6;
+    }
+
+    .message-box {
+      padding: 10px 14px;
+      border-radius: 8px;
+      background: rgba(245, 175, 25, 0.1);
+      border: 1px solid rgba(245, 175, 25, 0.2);
+      color: #f5af19;
+      font-size: 0.9em;
+      line-height: 1.5;
+      min-height: 40px;
+    }
+
+    .message-box.error {
+      background: rgba(241, 39, 17, 0.1);
+      border-color: rgba(241, 39, 17, 0.2);
+      color: #f12711;
+    }
+
+    .message-box.success {
+      background: rgba(80, 200, 120, 0.1);
+      border-color: rgba(80, 200, 120, 0.2);
+      color: #50c878;
+    }
+
+    .action-buttons {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .btn-action {
+      padding: 10px 16px;
+      border-radius: 8px;
+      border: 1px solid rgba(255,255,255,0.15);
+      background: rgba(255,255,255,0.06);
+      color: #ccd6f6;
+      font-size: 0.9em;
+      cursor: pointer;
+      transition: all 0.2s;
+      text-align: center;
+    }
+
+    .btn-action:hover:not(:disabled) {
+      background: rgba(255,255,255,0.12);
+      border-color: rgba(255,255,255,0.3);
+    }
+
+    .btn-action:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    .btn-action.danger {
+      border-color: rgba(241, 39, 17, 0.3);
+      color: #f12711;
+    }
+
+    .btn-action.danger:hover:not(:disabled) {
+      background: rgba(241, 39, 17, 0.1);
+    }
+
+    .move-history {
+      max-height: 120px;
+      overflow-y: auto;
+      font-size: 0.8em;
+      color: #8892b0;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(255,255,255,0.1) transparent;
+    }
+
+    .move-history::-webkit-scrollbar { width: 4px; }
+    .move-history::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 2px; }
+
+    .move-item {
+      padding: 2px 0;
+      white-space: nowrap;
+    }
+
+    .move-item .move-num {
+      color: #f5af19;
+      font-weight: 600;
+    }
+
+    .move-item.black { color: #ccc; }
+    .move-item.white { color: #999; }
+
+    /* 游戏结束遮罩 */
+    .game-over-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.6);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      backdrop-filter: blur(4px);
+    }
+
+    .game-over-modal {
+      background: linear-gradient(145deg, #1e2a3a, #162030);
+      border-radius: 20px;
+      padding: 40px;
+      text-align: center;
+      border: 1px solid rgba(255,255,255,0.1);
+      box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+      animation: modalIn 0.3s ease-out;
+    }
+
+    @keyframes modalIn {
+      from { transform: scale(0.8); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
+    }
+
+    .game-over-modal h2 {
+      font-size: 2em;
+      margin-bottom: 10px;
+      background: linear-gradient(135deg, #f5af19, #f12711);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .game-over-modal p {
+      color: #8892b0;
+      margin-bottom: 24px;
+      font-size: 1.1em;
+    }
+
+    /* 响应式 */
+    @media (max-width: 700px) {
+      .game-screen { flex-direction: column; align-items: center; }
+      .sidebar { max-width: 100%; min-width: auto; width: 100%; }
+      .start-screen h1 { font-size: 2em; }
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <!-- 开始界面 -->
+    <div v-if="!gameStarted" class="start-screen">
+      <h1>⚫ 围棋 ⚪</h1>
+      <p class="subtitle">人机对战 · Python + Vue 3</p>
+
+      <div class="settings-panel">
+        <div class="setting-row">
+          <label>棋盘大小</label>
+          <select v-model.number="settings.size">
+            <option :value="9">9 × 9</option>
+            <option :value="13">13 × 13</option>
+            <option :value="19">19 × 19</option>
+          </select>
+        </div>
+        <div class="setting-row">
+          <label>AI 难度</label>
+          <select v-model.number="settings.difficulty">
+            <option :value="1">简单</option>
+            <option :value="2">普通</option>
+            <option :value="3">困难</option>
+          </select>
+        </div>
+        <div class="setting-row">
+          <label>&nbsp;</label>
+          <button class="btn-primary" @click="startGame">开始游戏</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 游戏界面 -->
+    <div v-else class="game-screen">
+      <div class="board-container">
+        <div class="board-wrapper">
+          <div class="board" :style="boardStyle">
+            <div
+              v-for="(cell, idx) in flatGrid"
+              :key="idx"
+              class="cell"
+              @click="onCellClick(idx)"
+            >
+              <!-- 星位点 -->
+              <span
+                v-if="cell.isStarPoint"
+                class="star-point"
+              ></span>
+
+              <!-- 落子预览 -->
+              <span v-if="!cell.stone && !gameOver && turn === 1" class="hover-indicator"></span>
+
+              <!-- 棋子 -->
+              <span
+                v-if="cell.stone"
+                class="stone"
+                :class="cell.stone === 1 ? 'stone-black' : 'stone-white'"
+              ></span>
+
+              <!-- 最后落子标记 -->
+              <span
+                v-if="cell.isLastMove && cell.stone"
+                class="last-move-marker"
+                :class="cell.stone === 1 ? 'black' : 'white'"
+              ></span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="sidebar">
+        <!-- 回合指示 -->
+        <div class="panel">
+          <h3>当前回合</h3>
+          <div class="turn-indicator">
+            <span class="turn-dot" :class="turn === 1 ? 'black' : 'white'"></span>
+            <span class="turn-text">{{ turn === 1 ? '黑方（你）' : '白方（AI思考中…）' }}</span>
+          </div>
+          <div class="message-box" :class="messageType" v-if="message">
+            {{ message }}
+          </div>
+        </div>
+
+        <!-- 计分 -->
+        <div class="panel">
+          <h3>计分</h3>
+          <div class="score-row">
+            <span class="score-dot black"></span>
+            <span class="score-value">{{ stats.black }}</span>
+            <span class="score-label">黑子</span>
+          </div>
+          <div class="score-row">
+            <span class="score-dot white"></span>
+            <span class="score-value">{{ stats.white }}</span>
+            <span class="score-label">白子</span>
+          </div>
+          <div class="score-row">
+            <span class="score-dot" style="background:rgba(255,255,255,0.1);border:1px dashed rgba(255,255,255,0.2)"></span>
+            <span class="score-value">{{ stats.empty }}</span>
+            <span class="score-label">空位</span>
+          </div>
+        </div>
+
+        <!-- 操作 -->
+        <div class="panel">
+          <h3>操作</h3>
+          <div class="action-buttons">
+            <button class="btn-action" :disabled="gameOver || turn !== 1" @click="pass">Pass（放弃一手）</button>
+            <button class="btn-action danger" :disabled="gameOver || turn !== 1" @click="resign">认输</button>
+            <button class="btn-action" @click="newGame">新游戏</button>
+          </div>
+        </div>
+
+        <!-- 棋谱 -->
+        <div class="panel">
+          <h3>棋谱</h3>
+          <div class="move-history">
+            <div v-for="m in moveHistory" :key="m.num" class="move-item" :class="m.color">
+              <span class="move-num">{{ m.num }}.</span> {{ m.text }}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 游戏结束弹窗 -->
+    <div v-if="gameOver" class="game-over-overlay" @click.self="gameOver = false">
+      <div class="game-over-modal">
+        <h2>{{ gameOverTitle }}</h2>
+        <p>{{ gameOverDesc }}</p>
+        <button class="btn-primary" @click="newGame">再来一局</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const { createApp, ref, reactive, computed, onMounted } = Vue;
+
+    createApp({
+      setup() {
+        const API_BASE = window.location.origin;
+
+        // 状态
+        const gameStarted = ref(false);
+        const gameOver = ref(false);
+        const turn = ref(1); // 1=黑, 2=白
+        const gridSize = ref(19);
+        const grid = ref([]);
+        const lastMove = ref(null);
+        const blackCount = ref(0);
+        const whiteCount = ref(0);
+        const emptyCount = ref(0);
+        const message = ref('');
+        const messageType = ref('');
+        const moveHistory = ref([]);
+        const settings = reactive({ size: 19, difficulty: 2 });
+
+        // 星位坐标
+        const starPoints = {
+          9: [[2,2],[2,6],[6,2],[6,6],[4,4]],
+          13: [[3,3],[3,9],[9,3],[9,9],[6,6],[3,6],[6,3],[6,9],[9,6]],
+          19: [[3,3],[3,9],[3,15],[9,3],[9,9],[9,15],[15,3],[15,9],[15,15]]
+        };
+
+        const cellSize = computed(() => {
+          const maxWidth = Math.min(window.innerWidth - 340, 600);
+          return Math.floor(Math.max(20, Math.min(40, maxWidth / gridSize.value)));
+        });
+
+        const boardStyle = computed(() => ({
+          gridTemplateColumns: `repeat(${gridSize.value}, ${cellSize.value}px)`,
+          width: `${gridSize.value * cellSize.value}px`,
+        }));
+
+        const flatGrid = computed(() => {
+          const result = [];
+          const sp = starPoints[gridSize.value] || [];
+          for (let r = 0; r < gridSize.value; r++) {
+            for (let c = 0; c < gridSize.value; c++) {
+              const stone = grid.value[r]?.[c] || 0;
+              const isLast = lastMove.value && lastMove.value[0] === r && lastMove.value[1] === c;
+              const isStar = sp.some(([pr, pc]) => pr === r && pc === c);
+              result.push({ stone, isLastMove: isLast, isStarPoint: isStar, row: r, col: c });
+            }
+          }
+          return result;
+        });
+
+        const stats = computed(() => ({
+          black: blackCount.value,
+          white: whiteCount.value,
+          empty: emptyCount.value,
+        }));
+
+        const gameOverTitle = computed(() => {
+          if (!grid.value.length) return '';
+          const b = blackCount.value, w = whiteCount.value;
+          if (b > w + 7.5) return '🏆 黑方胜！';
+          if (w > b + 7.5) return '🤖 白方胜！';
+          return '平局';
+        });
+
+        const gameOverDesc = computed(() => {
+          if (!grid.value.length) return '';
+          return `黑${blackCount.value} 子 vs 白${whiteCount.value} 子（贴7.5目）`;
+        });
+
+        async function api(path, opts = {}) {
+          const resp = await fetch(`${API_BASE}${path}`, {
+            headers: { 'Content-Type': 'application/json' },
+            ...opts,
+          });
+          if (!resp.ok) {
+            const err = await resp.json();
+            throw new Error(err.detail || '请求失败');
+          }
+          return resp.json();
+        }
+
+        function formatMove(r, c) {
+          const cols = 'ABCDEFGHJKLMNOPQRST';
+          return `${cols[c]}${r + 1}`;
+        }
+
+        async function startGame() {
+          try {
+            const data = await api('/api/game/new', {
+              method: 'POST',
+              body: JSON.stringify({
+                size: settings.size,
+                difficulty: settings.difficulty,
+              }),
+            });
+            initFromState(data);
+            gameStarted.value = true;
+            message.value = data.message || '新游戏开始，黑方先行';
+            messageType.value = 'success';
+          } catch (e) {
+            message.value = e.message;
+            messageType.value = 'error';
+          }
+        }
+
+        function initFromState(data) {
+          gridSize.value = data.size;
+          grid.value = data.grid;
+          turn.value = data.turn + 1;
+          lastMove.value = data.last_move ? data.last_move : null;
+          blackCount.value = data.black_count;
+          whiteCount.value = data.white_count;
+          emptyCount.value = data.empty_count;
+          gameOver.value = data.game_over;
+          moveHistory.value = [];
+        }
+
+        async function onCellClick(idx) {
+          if (gameOver.value || turn.value !== 1) return;
+
+          const r = Math.floor(idx / gridSize.value);
+          const c = idx % gridSize.value;
+
+          try {
+            const data = await api('/api/game/play', {
+              method: 'POST',
+              body: JSON.stringify({ row: r, col: c }),
+            });
+            updateFromState(data);
+          } catch (e) {
+            message.value = e.message;
+            messageType.value = 'error';
+          }
+        }
+
+        async function pass() {
+          if (gameOver.value || turn.value !== 1) return;
+          try {
+            const data = await api('/api/game/pass', { method: 'POST' });
+            updateFromState(data);
+          } catch (e) {
+            message.value = e.message;
+            messageType.value = 'error';
+          }
+        }
+
+        async function resign() {
+          if (gameOver.value || turn.value !== 1) return;
+          try {
+            const data = await api('/api/game/resign', { method: 'POST' });
+            updateFromState(data);
+          } catch (e) {
+            message.value = e.message;
+            messageType.value = 'error';
+          }
+        }
+
+        function updateFromState(data) {
+          grid.value = data.grid;
+          lastMove.value = data.last_move ? data.last_move : null;
+          turn.value = data.turn + 1;
+          blackCount.value = data.black_count;
+          whiteCount.value = data.white_count;
+          emptyCount.value = data.empty_count;
+          gameOver.value = data.game_over;
+          message.value = data.message || '';
+          messageType.value = data.game_over ? 'success' : '';
+
+          // 记录棋谱
+          if (lastMove.value) {
+            const [r, c] = lastMove.value;
+            const color = turn.value === 2 ? '黑' : '白';
+            moveHistory.value.push({
+              num: Math.ceil(turn.value / 2),
+              color: turn.value === 2 ? 'black' : 'white',
+              text: `${color}${formatMove(r, c)}`,
+            });
+          }
+        }
+
+        function newGame() {
+          gameStarted.value = false;
+          gameOver.value = false;
+          grid.value = [];
+          message.value = '';
+          moveHistory.value = [];
+        }
+
+        return {
+          gameStarted, gameOver, turn, gridSize, grid, lastMove,
+          blackCount, whiteCount, emptyCount, message, messageType,
+          moveHistory, settings, cellSize, boardStyle, flatGrid, stats,
+          gameOverTitle, gameOverDesc,
+          startGame, onCellClick, pass, resign, newGame,
+        };
+      },
+    }).mount('#app');
+  </script>
+</body>
+</html>
