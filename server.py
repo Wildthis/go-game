@@ -6,6 +6,7 @@
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from typing import Optional
 import sys
@@ -16,6 +17,9 @@ from board import Board
 from ai import GoAI
 
 app = FastAPI(title="Go Game API", version="1.0.0")
+
+# 挂载静态文件（index.html）
+app.mount("/", StaticFiles(directory=".", html=True), name="static")
 
 # CORS - 允许前端跨域访问
 app.add_middleware(
